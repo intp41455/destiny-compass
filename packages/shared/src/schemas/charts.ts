@@ -34,7 +34,7 @@ export interface BaziResult {
   tenGods: Record<string, string>;
   hiddenStems: Record<string, string[]>;
   nayin: string;
-  dayun: { startAge: number; stems: string[] }[];
+  dayun: { startAge: number; endAge?: number; stems: string[] }[];
   shensha: string[];
   tags: string[];
 }
