@@ -66,8 +66,13 @@ export function buildChatRequest(req: ChatRequest): BuiltRequest {
   if (req.maxTokens !== undefined) body.max_tokens = req.maxTokens;
   if (req.responseFormat) body.response_format = req.responseFormat;
 
+  // 智能拼接：baseUrl 已含 /v1 时不再重复追加
+  const chatPath = config.baseUrl.endsWith("/v1")
+    ? "/chat/completions"
+    : "/v1/chat/completions";
+
   return {
-    url: `${config.baseUrl}/v1/chat/completions`,
+    url: `${config.baseUrl}${chatPath}`,
     body,
     headers: {
       "Content-Type": "application/json",
