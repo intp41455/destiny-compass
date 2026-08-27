@@ -1,0 +1,13 @@
+name = "destiny-compass"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+LLM_API_KEY = ""
+LLM_BASE_URL = "https://api.agnes-ai.com"
+LLM_MODEL = "agnes-ai"
+
+[build]
+command = "npx tsc"
+watch_dir = ["src"]

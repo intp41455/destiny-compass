@@ -6,9 +6,13 @@
     "dev": "pnpm -r --parallel run dev",
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
-    "dev:frontend": "pnpm --filter frontend dev",
+    "dev:frontend": "pnpm --filter @destiny/frontend dev",
     "dev:orchestrator": "pnpm --filter @destiny/orchestrator dev",
     "dev:mcp-bazi": "pnpm --filter @destiny/mcp-bazi dev",
-    "dev:mcp-llm": "pnpm --filter @destiny/mcp-llm dev"
-  }
+    "dev:mcp-llm": "pnpm --filter @destiny/mcp-llm dev",
+    "dev:worker": "pnpm --filter @destiny/cloudflare-worker dev"
+  },
+  "workspaces": [
+    "packages/*"
+  ]
 }
