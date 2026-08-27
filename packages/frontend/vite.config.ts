@@ -7,6 +7,7 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    allowedHosts: true, // 允许外部 IP/域名访问（Vite 5 安全策略）
     proxy: {
       "/api": {
         target: "http://localhost:3000",

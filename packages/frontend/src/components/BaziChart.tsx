@@ -49,15 +49,15 @@ export function BaziChart({ data, meta }: Props) {
         {pillars.map((p) => (
           <div
             key={p.label}
-            className="bg-gradient-to-b from-zinc-50 to-zinc-100 dark:from-zinc-800/80 dark:to-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-center"
+            className="bg-gradient-to-b from-zinc-50 to-zinc-100 dark:from-zinc-800/80 dark:to-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 sm:p-3 text-center"
           >
-            <div className="text-xs text-zinc-500 mb-1">{p.label}</div>
-            <div className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
+            <div className="text-[10px] sm:text-xs text-zinc-500 mb-1">{p.label}</div>
+            <div className="text-xl sm:text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
               {p.value}
             </div>
-            <div className="text-xs text-brand-700 dark:text-brand-300">{p.god}</div>
+            <div className="text-[10px] sm:text-xs text-brand-700 dark:text-brand-300">{p.god}</div>
             {p.hidden.length > 0 && (
-              <div className="text-[10px] text-zinc-400 mt-1">藏：{p.hidden.join("")}</div>
+              <div className="text-[9px] sm:text-[10px] text-zinc-400 mt-1 truncate">藏：{p.hidden.join("")}</div>
             )}
           </div>
         ))}

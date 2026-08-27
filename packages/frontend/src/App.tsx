@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { InputForm } from "./components/InputForm";
 import { BaziChart } from "./components/BaziChart";
+import { MultiChartsPanel } from "./components/MultiChartsPanel";
 import { StatusBadge } from "./components/StatusBadge";
 import { ProgressTimeline } from "./components/ProgressTimeline";
 import { AnalysisSection } from "./components/AnalysisSection";
@@ -27,6 +28,43 @@ interface ChartsData {
     nayin: string;
     dayun: { startAge: number; endAge?: number; stems: string[] }[];
     shensha: string[];
+    tags: string[];
+  };
+  ziwei?: {
+    fiveElementsClass: string;
+    soulPalaceStar: string;
+    soulPalaceBranch: string;
+    bodyPalaceStar: string;
+    bodyPalaceBranch: string;
+    chineseDate: string;
+    daxian: { startAge: number; endAge?: number; earthlyBranch: string }[];
+    tags: string[];
+  };
+  vedic?: {
+    lagna: string;
+    moonRashi: string;
+    sunRashi: string;
+    moonNakshatra: string;
+    moonPada: number;
+    currentDasha: { maha: string; antar: string };
+    yogas: string[];
+    gochara: { saturn: string; jupiter: string };
+    tags: string[];
+  };
+  western?: {
+    planets: { name: string; signName: string; degreeInSign: number; house: number }[];
+    houses: { ascendant: number; midheaven: number };
+    firdaria: { ruler: string; subRuler?: string };
+    profection: { house: number; ruler: string };
+    aspects: { planetA: string; planetB: string; type: string; orb: number }[];
+    tags: string[];
+  };
+  arabic?: {
+    parts: { name: string; sign: string; house: number; formula: string }[];
+    northNode: { sign: string; house: number };
+    southNode: { sign: string; house: number };
+    dayRuler: string;
+    hourRuler: string;
     tags: string[];
   };
   unifiedTags: string[];
@@ -110,13 +148,13 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
-      <header className="border-b border-zinc-200 dark:border-zinc-800 px-6 py-3 flex items-center justify-between bg-white dark:bg-zinc-900 sticky top-0 z-10">
-        <div className="flex items-center gap-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-brand-600" />
-          <span className="font-medium">命理罗盘 · Destiny Compass</span>
-          <span className="text-xs text-zinc-400 ml-2">v0.1 Phase 1</span>
+      <header className="border-b border-zinc-200 dark:border-zinc-800 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-2 bg-white dark:bg-zinc-900 sticky top-0 z-10">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-2.5 h-2.5 rounded-full bg-brand-600 shrink-0" />
+          <span className="font-medium text-sm sm:text-base truncate">命理罗盘 · Destiny Compass</span>
+          <span className="hidden sm:inline text-xs text-zinc-400 ml-2">v0.2</span>
         </div>
-        <div className="text-xs text-zinc-500">
+        <div className="text-xs text-zinc-500 shrink-0">
           {isConnected && <span className="text-green-600 dark:text-green-400">● SSE 已连接</span>}
           {!isConnected && isDone && <span className="text-zinc-400">分析完成</span>}
           {!isConnected && !isDone && loading && (
@@ -125,9 +163,9 @@ export default function App() {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[20rem_1fr] gap-4 p-4 max-w-7xl mx-auto">
+      <div className="grid grid-cols-1 lg:grid-cols-[20rem_1fr] gap-4 p-3 sm:p-4 max-w-7xl mx-auto">
         {/* 左侧：输入 + 状态 + 进度 */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4">
             <h2 className="font-medium mb-3 text-sm">排盘输入</h2>
             <InputForm onSubmit={handleSubmit} loading={loading} />
@@ -161,6 +199,13 @@ export default function App() {
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
               <h2 className="font-medium mb-4 text-sm">命盘总览</h2>
               <BaziChart data={charts.bazi} meta={charts.meta} />
+              <MultiChartsPanel
+                ziwei={charts.ziwei}
+                vedic={charts.vedic}
+                western={charts.western}
+                arabic={charts.arabic}
+                unifiedTags={charts.unifiedTags}
+              />
             </div>
           ) : (
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-12 text-center text-zinc-400">
@@ -197,7 +242,7 @@ export default function App() {
       </div>
 
       <footer className="text-center text-xs text-zinc-400 py-4">
-        Destiny Compass · Phase 1：八字排盘 + LLM 综合 · 数据为参考性质
+        Destiny Compass · Phase 2：八字 + 紫微 + 印度 + 西洋 + 阿拉伯 多术数综合 · 数据为参考性质
       </footer>
     </div>
   );

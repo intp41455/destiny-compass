@@ -3,11 +3,37 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "src/index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./astronomy": {
+      "types": "./dist/astronomy/index.d.ts",
+      "import": "./dist/astronomy/index.js"
+    },
+    "./geo-coding": {
+      "types": "./dist/geo-coding/index.d.ts",
+      "import": "./dist/geo-coding/index.js"
+    },
+    "./schemas": {
+      "types": "./dist/schemas/charts.d.ts",
+      "import": "./dist/schemas/charts.js"
+    },
+    "./solar-time": {
+      "types": "./dist/solar-time/index.d.ts",
+      "import": "./dist/solar-time/index.js"
+    }
+  },
   "scripts": {
     "dev": "tsc --watch",
     "build": "tsc",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "astronomy-engine": "^2.1.16"
   },
   "devDependencies": {
     "vitest": "^2.0.0",

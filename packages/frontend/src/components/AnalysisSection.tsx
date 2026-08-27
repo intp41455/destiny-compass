@@ -27,6 +27,7 @@ interface LifeData {
   weaknesses?: string[];
   luckyElements?: string;
   tabooElements?: string;
+  crossSystemConsensus?: string[];
   // fallback 字段
   error?: string;
   message?: string;
@@ -147,6 +148,27 @@ export function AnalysisSection({ section, content }: AnalysisSectionProps) {
             ) : null
           )}
         </div>
+
+        {data.crossSystemConsensus && data.crossSystemConsensus.length > 0 && (
+          <div className="mt-4 bg-gradient-to-br from-brand-50 to-purple-50 dark:from-brand-900/30 dark:to-purple-900/30 border border-brand-200 dark:border-brand-800/50 rounded-lg p-4">
+            <div className="flex items-center gap-1.5 mb-2">
+              <span className="text-base">☯</span>
+              <h4 className="font-medium text-sm text-brand-700 dark:text-brand-300">
+                跨术数共识（八字 · 紫微 · 印度 · 西洋 · 阿拉伯）
+              </h4>
+            </div>
+            <ul className="space-y-2 text-sm text-zinc-700 dark:text-zinc-200">
+              {data.crossSystemConsensus.map((c, i) => (
+                <li key={i} className="flex gap-2">
+                  <span className="text-brand-600 dark:text-brand-400 shrink-0 font-medium">
+                    #{i + 1}
+                  </span>
+                  <span className="leading-relaxed">{c}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     );
   }

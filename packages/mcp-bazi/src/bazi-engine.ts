@@ -85,11 +85,11 @@ export function calculateBazi(
   const yun = ec.getYun(gender === "male" ? 1 : 0);
   const rawDayun = yun.getDaYun();
   const dayun = rawDayun
-    .filter((dy) => {
+    .filter((dy: any) => {
       const gz = dy.getGanZhi();
       return gz && gz.length > 0;
     })
-    .map((dy) => ({
+    .map((dy: any) => ({
       startAge: dy.getStartAge(),
       endAge: dy.getEndAge(),
       stems: [dy.getGanZhi()],

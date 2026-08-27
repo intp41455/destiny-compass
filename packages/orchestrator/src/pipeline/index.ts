@@ -1,11 +1,21 @@
 import type { ChartsResult, PaipanInput, SSEEvent } from "@destiny/shared";
-import { callBaziPaipan, callLLM } from "../mcp-client/index.js";
+import {
+  callBaziPaipan,
+  callZiweiPaipan,
+  callVedicPaipan,
+  callWesternPaipan,
+  callArabicPaipan,
+  callRagSearch,
+  callMultiSearch,
+  callLLM,
+} from "../mcp-client/index.js";
 import { eventBus } from "../event-bus.js";
 import {
   buildLifeAnalysisPrompt,
   buildYearlyFortunePrompt,
   buildMonthlyFortunePrompt,
   buildDailyFortunePrompt,
+  type PromptContext,
 } from "./prompts.js";
 
 export type ProgressCallback = (event: SSEEvent) => void;
@@ -38,11 +48,11 @@ export async function runAnalysisPipeline(
 }> {
   const sections: Record<string, string> = {};
 
-  // ============ STEP 1: 排盘 ============
+  // ============ STEP 1: 八字排盘（必选，地基） ============
   onProgress({ type: "progress", step: "STEP 1", message: "正在调用真太阳时 + 八字排盘服务…" });
-  let charts: ChartsResult;
+  let baseCharts: ChartsResult;
   try {
-    charts = await callBaziPaipan(input);
+    baseCharts = await callBaziPaipan(input);
   } catch (err) {
     onProgress({
       type: "error",
@@ -52,13 +62,129 @@ export async function runAnalysisPipeline(
     throw err;
   }
 
+  // ============ STEP 1.5: 多术数排盘（紫微/印度/西洋/阿拉伯 并行） ============
+  onProgress({
+    type: "progress",
+    step: "STEP 1.5",
+    message: "正在并行调用紫微/印度/西洋/阿拉伯排盘服务…",
+  });
+
+  const birthYear = Number(baseCharts.meta.birthday.slice(0, 4));
+  const currentYear = new Date().getFullYear();
+  const age = currentYear - birthYear;
+
+  // 四种术数并行调用，单服务失败不阻塞其他
+  const [ziweiRes, vedicRes, westernRes, arabicRes] = await Promise.allSettled([
+    callZiweiPaipan(input),
+    callVedicPaipan(input, age),
+    callWesternPaipan(input, age),
+    callArabicPaipan(input),
+  ]);
+
+  const multiFailures: string[] = [];
+  const charts: ChartsResult = { ...baseCharts };
+
+  if (ziweiRes.status === "fulfilled" && ziweiRes.value.ziwei) {
+    charts.ziwei = ziweiRes.value.ziwei;
+  } else if (ziweiRes.status === "rejected") {
+    multiFailures.push(`紫微: ${ziweiRes.reason?.message ?? ziweiRes.reason}`);
+  }
+
+  if (vedicRes.status === "fulfilled" && vedicRes.value.vedic) {
+    charts.vedic = vedicRes.value.vedic;
+  } else if (vedicRes.status === "rejected") {
+    multiFailures.push(`印度: ${vedicRes.reason?.message ?? vedicRes.reason}`);
+  }
+
+  if (westernRes.status === "fulfilled" && westernRes.value.western) {
+    charts.western = westernRes.value.western;
+  } else if (westernRes.status === "rejected") {
+    multiFailures.push(`西洋: ${westernRes.reason?.message ?? westernRes.reason}`);
+  }
+
+  if (arabicRes.status === "fulfilled" && arabicRes.value.arabic) {
+    charts.arabic = arabicRes.value.arabic;
+  } else if (arabicRes.status === "rejected") {
+    multiFailures.push(`阿拉伯: ${arabicRes.reason?.message ?? arabicRes.reason}`);
+  }
+
+  // 汇总多术数标签
+  const allTags = new Set<string>(charts.bazi.tags);
+  if (charts.ziwei) charts.ziwei.tags.forEach((t) => allTags.add(t));
+  if (charts.vedic) charts.vedic.tags.forEach((t) => allTags.add(t));
+  if (charts.western) charts.western.tags.forEach((t) => allTags.add(t));
+  if (charts.arabic) charts.arabic.tags.forEach((t) => allTags.add(t));
+  charts.unifiedTags = Array.from(allTags);
+
+  if (multiFailures.length > 0) {
+    onProgress({
+      type: "progress",
+      step: "STEP 1.5",
+      message: `部分术数不可用（继续分析）：${multiFailures.join("；")}`,
+    });
+  }
+
   onProgress({
     type: "charts",
-    data: {
-      ...charts,
-      unifiedTags: charts.bazi.tags,
-    } as ChartsResult,
+    data: charts,
   });
+
+  // ============ STEP 1.6: RAG + 多源搜索（补充知识上下文） ============
+  onProgress({
+    type: "progress",
+    step: "STEP 1.6",
+    message: "正在检索命理知识库 + 多源搜索…",
+  });
+
+  const promptCtx: PromptContext = {};
+
+  // RAG：用多术数标签作为查询
+  try {
+    const ragRes = await callRagSearch(charts.unifiedTags, { topK: 6 });
+    if (ragRes.hits.length > 0) {
+      promptCtx.ragHits = ragRes.hits.map((h) => ({
+        system: h.entry.system,
+        title: h.entry.title,
+        text: h.entry.text,
+        source: h.entry.source,
+      }));
+    }
+  } catch (err) {
+    onProgress({
+      type: "progress",
+      step: "STEP 1.6",
+      message: `RAG 不可用，继续：${(err as Error).message}`,
+    });
+  }
+
+  // 多源搜索：基于命主日主 + Lagna/上升 等关键标签
+  const searchQuery = [
+    charts.bazi.dayMaster,
+    charts.ziwei?.soulPalaceStar,
+    charts.vedic?.lagna,
+    charts.western ? "上升" : "",
+  ]
+    .filter(Boolean)
+    .slice(0, 4)
+    .join(" ");
+
+  try {
+    const searchRes = await callMultiSearch(searchQuery, { limit: 5 });
+    if (searchRes.hits.length > 0) {
+      promptCtx.searchHits = searchRes.hits.map((h) => ({
+        title: h.title,
+        url: h.url,
+        snippet: h.snippet,
+        source: h.source,
+      }));
+    }
+  } catch (err) {
+    onProgress({
+      type: "progress",
+      step: "STEP 1.6",
+      message: `多源搜索不可用，继续：${(err as Error).message}`,
+    });
+  }
 
   // ============ STEP 2: 人生总分析 ============
   onProgress({ type: "progress", step: "STEP 2", message: "正在生成人生总分析…" });
@@ -66,7 +192,7 @@ export async function runAnalysisPipeline(
     const lifeAnalysis = await callLLM({
       messages: [
         { role: "system", content: SYSTEM_PROMPT_BASE },
-        { role: "user", content: buildLifeAnalysisPrompt(charts) },
+        { role: "user", content: buildLifeAnalysisPrompt(charts, promptCtx) },
       ],
       temperature: 0.7,
       responseFormat: { type: "json_object" },
@@ -99,7 +225,7 @@ export async function runAnalysisPipeline(
     const yearly = await callLLM({
       messages: [
         { role: "system", content: SYSTEM_PROMPT_BASE },
-        { role: "user", content: buildYearlyFortunePrompt(charts, year) },
+        { role: "user", content: buildYearlyFortunePrompt(charts, year, promptCtx) },
       ],
       temperature: 0.7,
       responseFormat: { type: "json_object" },
@@ -126,7 +252,7 @@ export async function runAnalysisPipeline(
     const monthly = await callLLM({
       messages: [
         { role: "system", content: SYSTEM_PROMPT_BASE },
-        { role: "user", content: buildMonthlyFortunePrompt(charts, year, month) },
+        { role: "user", content: buildMonthlyFortunePrompt(charts, year, month, promptCtx) },
       ],
       temperature: 0.7,
       responseFormat: { type: "json_object" },
@@ -158,7 +284,7 @@ export async function runAnalysisPipeline(
       const daily = await callLLM({
         messages: [
           { role: "system", content: SYSTEM_PROMPT_BASE },
-          { role: "user", content: buildDailyFortunePrompt(charts, now, i) },
+          { role: "user", content: buildDailyFortunePrompt(charts, now, i, promptCtx) },
         ],
         temperature: 0.7,
         responseFormat: { type: "json_object" },

@@ -117,6 +117,139 @@ describe("buildDailyFortunePrompt", () => {
   });
 });
 
+const mockMultiCharts: ChartsResult = {
+  ...mockCharts,
+  ziwei: {
+    fiveElementsClass: "木三局",
+    soulPalaceStar: "紫微天府",
+    soulPalaceBranch: "寅",
+    bodyPalaceStar: "天梁",
+    bodyPalaceBranch: "午",
+    chineseDate: "乙亥年壬午月丁丑日丁未时",
+    daxian: [
+      { startAge: 6, endAge: 15, earthlyBranch: "辰" },
+      { startAge: 16, endAge: 25, earthlyBranch: "巳" },
+    ],
+    tags: ["紫微天府", "命宫寅", "天梁身宫"],
+  },
+  vedic: {
+    lagna: "Simha",
+    moonRashi: "Karka",
+    sunRashi: "Mithuna",
+    moonNakshatra: "Pushya",
+    moonPada: 1,
+    currentDasha: { maha: "Saturn", antar: "Mercury" },
+    yogas: ["Gaja Kesari Yoga"],
+    gochara: { saturn: "Makara", jupiter: "Vrishabha" },
+    tags: ["Lagna Simha", "月亮 Karka", "Gaja Kesari"],
+  },
+  western: {
+    planets: [
+      { name: "sun", signName: "Gemini", degreeInSign: 24.5, house: 7 },
+      { name: "moon", signName: "Cancer", degreeInSign: 8.2, house: 8 },
+    ],
+    houses: { ascendant: 140, midheaven: 65 },
+    firdaria: { ruler: "Sun", subRuler: "Moon" },
+    profection: { house: 7, ruler: "Venus" },
+    aspects: [
+      { planetA: "sun", planetB: "moon", type: "trine", orb: 2.3 },
+    ],
+    tags: ["上升 Leo", "太阳 Gemini", "月亮 Cancer"],
+  },
+  arabic: {
+    parts: [
+      { name: "Part of Fortune", sign: "Leo", house: 1, formula: "Asc+Moon-Sun" },
+      { name: "Part of Spirit", sign: "Aquarius", house: 7, formula: "Asc+Sun-Moon" },
+    ],
+    northNode: { sign: "Aries", house: 9 },
+    southNode: { sign: "Libra", house: 3 },
+    dayRuler: "Sun",
+    hourRuler: "Venus",
+    tags: ["福点 Leo", "北交 Aries"],
+  },
+  unifiedTags: [
+    ...mockCharts.bazi.tags,
+    "紫微天府", "Lagna Simha", "上升 Leo", "福点 Leo",
+  ],
+};
+
+describe("多术数综合 prompt 集成", () => {
+  it("人生总分析应注入紫微/印度/西洋/阿拉伯排盘片段", () => {
+    const prompt = buildLifeAnalysisPrompt(mockMultiCharts);
+    expect(prompt).toContain("# 紫微斗数排盘");
+    expect(prompt).toContain("紫微天府");
+    expect(prompt).toContain("# 印度占星（Jyotish）");
+    expect(prompt).toContain("Lagna：Simha");
+    expect(prompt).toContain("# 古典占星");
+    expect(prompt).toContain("上升");
+    expect(prompt).toContain("# 阿拉伯占星");
+    expect(prompt).toContain("福点");
+  });
+
+  it("人生总分析应包含跨术数共识 JSON 字段要求", () => {
+    const prompt = buildLifeAnalysisPrompt(mockMultiCharts);
+    expect(prompt).toContain("crossSystemConsensus");
+    expect(prompt).toContain("跨术数共识");
+  });
+
+  it("人生总分析应注入 RAG 召回片段与多源搜索片段", () => {
+    const prompt = buildLifeAnalysisPrompt(mockMultiCharts, {
+      ragHits: [
+        {
+          system: "bazi",
+          title: "丁火日主身强特性",
+          text: "丁火身强多主文采与敏锐直觉",
+          source: "《穷通宝鉴》",
+        },
+      ],
+      searchHits: [
+        {
+          title: "Leo Ascendant Traits",
+          url: "https://example.com/leo",
+          snippet: "Leo rising suggests leadership qualities",
+          source: "duckduckgo",
+        },
+      ],
+    });
+    expect(prompt).toContain("# 参考知识库片段（RAG）");
+    expect(prompt).toContain("丁火日主身强特性");
+    expect(prompt).toContain("《穷通宝鉴》");
+    expect(prompt).toContain("# 外部搜索补充（多源搜索）");
+    expect(prompt).toContain("Leo Ascendant");
+    expect(prompt).toContain("https://example.com/leo");
+  });
+
+  it("年度运势应注入当年跨术数推运信息", () => {
+    const prompt = buildYearlyFortunePrompt(mockMultiCharts, 2026);
+    expect(prompt).toContain("印度 Dasha");
+    expect(prompt).toContain("Saturn");
+    expect(prompt).toContain("西洋 Firdaria");
+    expect(prompt).toContain("Sun");
+    expect(prompt).toContain("西洋 Profection");
+    expect(prompt).toContain("第 7 宫");
+  });
+
+  it("月度运势应接受 RAG/搜索 context 注入", () => {
+    const prompt = buildMonthlyFortunePrompt(mockMultiCharts, 2026, 8, {
+      ragHits: [
+        { system: "ziwei", title: "天梁星健康提示", text: "天梁主寿，逢煞易病", source: "《紫微斗数全书》" },
+      ],
+    });
+    expect(prompt).toContain("# 参考知识库片段（RAG）");
+    expect(prompt).toContain("天梁星健康提示");
+  });
+
+  it("每日运势应接受 RAG/搜索 context 注入", () => {
+    const prompt = buildDailyFortunePrompt(mockMultiCharts, new Date("2026-08-21"), 0, {
+      searchHits: [
+        { title: "Saturn transit 2026", url: "https://example.com/saturn", snippet: "Saturn transit impacts", source: "wikipedia" },
+      ],
+    });
+    expect(prompt).toContain("# 外部搜索补充（多源搜索）");
+    expect(prompt).toContain("Saturn transit");
+  });
+});
+
 describe("EventBus", () => {
   it("应回放历史事件给晚到的订阅者", () => {
     const id = `test-${Date.now()}-${Math.random()}`;
