@@ -28,14 +28,13 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          workingDirectory: packages/cloudflare-worker
-          command: deploy --env production
+      - name: Build and Deploy to Cloudflare Workers
+        working-directory: packages/cloudflare-worker
+        run: |
+          npx wrangler deploy \
+            --var LLM_BASE_URL:${{ vars.LLM_BASE_URL || 'https://api.agnes-ai.cn/v1' }} \
+            --var LLM_MODEL:${{ vars.LLM_MODEL || 'agnes-2.5-flash' }}
         env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
-          LLM_BASE_URL: ${{ vars.LLM_BASE_URL || 'https://api.agnes-ai.cn/v1' }}
-          LLM_MODEL: ${{ vars.LLM_MODEL || 'agnes-2.5-flash' }}
