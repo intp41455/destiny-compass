@@ -75,9 +75,8 @@ export function useSSE(): SSEState {
       // 连接级错误（如网络断开）
       es.onerror = () => {
         setIsConnected(false);
-        // 若未收到 done/error，则视为异常断开
-        if (!es.CLOSED) {
-          setError("SSE 连接中断");
+        if (!isDone) {
+          setError("SSE 连接中断，请刷新重试");
         }
       };
     },
