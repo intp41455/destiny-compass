@@ -24,8 +24,9 @@ export interface ServiceStatus {
 
 export interface StatusResponse {
   timestamp: string;
-  healthCheckTimeoutMs: number;
-  services: ServiceStatus[];
+  status?: string;
+  service?: string;
+  services?: ServiceStatus[];
 }
 
 export async function startAnalysis(

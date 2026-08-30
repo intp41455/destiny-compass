@@ -1,30 +1,42 @@
 import { useState, useEffect } from "react";
 import { getStatus, type ServiceStatus } from "../api/client";
 
+const MODULES: ServiceStatus[] = [
+  { name: "BAZI", port: 1, status: "online" },
+  { name: "ZIWEI", port: 2, status: "online" },
+  { name: "VEDIC", port: 3, status: "online" },
+  { name: "WESTERN", port: 4, status: "online" },
+  { name: "ARABIC", port: 5, status: "online" },
+  { name: "LLM", port: 6, status: "online" },
+];
+
 const MCP_LABELS: Record<string, string> = {
   BAZI: "八字排盘",
   ZIWEI: "紫微斗数",
   VEDIC: "印度占星",
   WESTERN: "古典占星",
   ARABIC: "阿拉伯占星",
-  RAG: "命理 RAG 库",
-  SEARCH: "多源搜索",
-  LLM: "LLM 网关",
+  LLM: "LLM 分析",
 };
 
 export function StatusBadge() {
-  const [services, setServices] = useState<ServiceStatus[]>([]);
+  const [services, setServices] = useState<ServiceStatus[]>(MODULES);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
   useEffect(() => {
     const fetchStatus = () => {
       getStatus()
         .then((d) => {
-          setServices(d.services);
+          const isOnline = d.status === "online";
+          if (d.services && d.services.length > 0) {
+            setServices(d.services);
+          } else {
+            setServices(MODULES.map((m) => ({ ...m, status: isOnline ? "online" : "offline" })));
+          }
           setLastUpdate(new Date());
         })
         .catch(() => {
-          // 静默失败
+          setServices(MODULES.map((m) => ({ ...m, status: "offline" })));
         });
     };
     fetchStatus();
@@ -58,7 +70,6 @@ export function StatusBadge() {
           >
             <span className="text-zinc-700 dark:text-zinc-300">
               {MCP_LABELS[s.name] ?? s.name}
-              <span className="text-zinc-400 ml-1">:{s.port}</span>
             </span>
             <span
               className={
