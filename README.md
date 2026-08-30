@@ -1,104 +1,57 @@
 # 命理罗盘 · Destiny Compass
 
-多体系命理学分析平台，集成八字、紫微斗数、印度吠陀占星、古典西洋占星、阿拉伯占星、RAG 知识库与多源搜索，由大语言模型驱动综合分析。
+多体系命理学分析平台，集成八字、紫微斗数、印度吠陀占星、古典西洋占星、阿拉伯占星，由大语言模型驱动综合分析。后端为单个 Cloudflare Worker，前端为 React SPA。
 
 ## 系统架构
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      Frontend (React + Vite)                │
-│                         Port 5173                           │
-└─────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Orchestrator (Fastify)                   │
-│                   Port 3000 /health                         │
-│              Multi-stage pipeline + SSE streaming           │
-└─────────────────────────────────────────────────────────────┘
-         │        │        │        │        │        │
-         ▼        ▼        ▼        ▼        ▼        ▼
-    ┌────────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐
-    │ Bazi  │ │Ziwei │ │Vedic │ │West │ │Arab │ │  RAG │
-    │ :3011 │ │ :3012│ │:3013│ │:3014│ │:3015│ │:3016│
-    └────────┘ └──────┘ └──────┘ └──────┘ └──────┘ └──────┘
-                                            │
-                                    ┌───────────────┐
-                                    │  MCP Search   │
-                                    │    :3017      │
-                                    └───────────────┘
-                                            │
-                                    ┌───────────────┐
-                                    │   MCP LLM     │
-                                    │    :3018      │
-                                    └───────────────┘
+┌─────────────────────────────────────────────┐
+│         Frontend (React + Vite)             │
+│              /destiny-compass/              │
+└─────────────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────┐
+│     Cloudflare Worker (Hono + SSE)          │
+│  /api/status  /api/analyze  /api/stream/:id │
+└─────────────────────────────────────────────┘
 ```
 
-## 技术栈
-
-- **Monorepo**: pnpm workspace
-- **Runtime**: Node.js 20+ (ESM, TypeScript)
-- **Backend**: Fastify MCP servers
-- **Frontend**: React + Vite + TailwindCSS
-- **LLM**: OpenAI-compatible API (agnes-ai)
-- **Architecture**: Multi-server with health-check orchestrator
-
-## 快速开始
-
-### 安装依赖
+## 本地开发
 
 ```bash
 pnpm install
+cp packages/cloudflare-worker/.dev.vars packages/cloudflare-worker/.dev.vars.local
+# 编辑 .dev.vars.local 填入 LLM_API_KEY
+
+# 终端 1：启动 Worker
+pnpm dev:worker
+
+# 终端 2：启动前端
+pnpm dev:frontend
 ```
 
-### 构建
+前端访问 `http://localhost:5173/destiny-compass/`，API 通过 Vite proxy 转发到 `http://localhost:8787`。
 
-```bash
-pnpm run build
-```
+## 部署
 
-### 启动所有服务
+### 后端
 
-```bash
-bash scripts/start-all.sh
-```
+在 GitHub 仓库 Settings → Secrets and variables → Actions 中添加：
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+- `LLM_API_KEY`
 
-### 环境变量
+推送代码到 `master` 会自动触发 `.github/workflows/worker.yml` 部署到 `destiny-compass-prod`。
 
-复制 `.env.example` 为 `.env` 并填入 API 密钥：
+### 前端
 
-```bash
-cp .env.example .env
-```
+前端构建产物在 `packages/frontend/dist/`，可部署到任意静态托管（GitHub Pages、Cloudflare Pages 等）。
 
-## 健康检查
+## 环境变量
 
-```bash
-curl http://localhost:3000/health
-curl http://localhost:5173/
-```
-
-## API 端点
-
-- `GET /health` - 健康检查（Orchestrator）
-- `GET /api/services` - 所有服务状态
-- `POST /api/analyze` - 开始分析（SSE 流式返回）
-
-## 各服务端口
-
-| 服务 | 端口 | 说明 |
-|------|------|------|
-| Orchestrator | 3000 | 主编排器 |
-| Frontend | 5173 | React SPA |
-| MCP Bazi | 3011 | 八字引擎 |
-| MCP Ziwei | 3012 | 紫微斗数 |
-| MCP Vedic | 3013 | 印度吠陀占星 |
-| MCP Western | 3014 | 古典西洋占星 |
-| MCP Arabic | 3015 | 阿拉伯占星 |
-| MCP RAG | 3016 | 知识库检索 |
-| MCP Search | 3017 | 多源搜索 |
-| MCP LLM | 3018 | 大语言模型网关 |
-
-## 许可证
-
-MIT
+| 变量 | 说明 |
+|------|------|
+| `LLM_API_KEY` | OpenAI 兼容 API 密钥 |
+| `LLM_BASE_URL` | 默认 `https://api.agnes-ai.cn` |
+| `LLM_MODEL` | 默认 `agnes-2.5-flash` |
