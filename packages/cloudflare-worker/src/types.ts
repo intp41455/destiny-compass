@@ -116,6 +116,18 @@ export interface ArabicResult {
   tags: string[];
 }
 
+/** 紫微斗数结果 */
+export interface ZiweiResult {
+  fiveElementsClass: string;
+  soulPalaceStar: string;
+  soulPalaceBranch: string;
+  bodyPalaceStar: string;
+  bodyPalaceBranch: string;
+  chineseDate: string;
+  daxian: { startAge: number; endAge?: number; earthlyBranch: string }[];
+  tags: string[];
+}
+
 /** 统一排盘输出 */
 export interface ChartsResult {
   meta: {
@@ -129,6 +141,7 @@ export interface ChartsResult {
     locationName: string;
   };
   bazi: BaziResult;
+  ziwei?: ZiweiResult;
   western?: WesternResult;
   vedic?: VedicResult;
   arabic?: ArabicResult;

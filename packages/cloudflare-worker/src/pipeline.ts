@@ -2,6 +2,7 @@ import type { ChartsResult, PaipanInput, SSEEvent } from "./types.js";
 import { calculateBazi } from "./bazi.js";
 import { calculateSolarTime } from "./solar-time.js";
 import { calculateWesternAstrology, calculateVedicAstrology, calculateArabicAstrology } from "./astrology.js";
+import { calculateZiwei } from "./ziwei.js";
 import { publishEvent } from "./event-bus.js";
 import { LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, ANALYSIS_TIMEOUT_MS } from "./config.js";
 
@@ -191,6 +192,7 @@ export async function runAnalysisPipeline(
   const westernResult = calculateWesternAstrology(input.birthday, input.birthTime, lat, lng, age);
   const vedicResult = calculateVedicAstrology(input.birthday, input.birthTime, lat, lng, age);
   const arabicResult = calculateArabicAstrology(input.birthday, input.birthTime, lat, lng);
+  const ziweiResult = calculateZiwei(input.birthday, input.birthTime, input.gender);
 
   const charts: ChartsResult = {
     meta: {
@@ -204,10 +206,11 @@ export async function runAnalysisPipeline(
       locationName: input.locationName,
     },
     bazi,
+    ziwei: ziweiResult,
     western: westernResult,
     vedic: vedicResult,
     arabic: arabicResult,
-    unifiedTags: [...new Set([...bazi.tags, ...westernResult.tags, ...vedicResult.tags, ...arabicResult.tags])],
+    unifiedTags: [...new Set([...bazi.tags, ...ziweiResult.tags, ...westernResult.tags, ...vedicResult.tags, ...arabicResult.tags])],
   };
 
   onProgress({ type: "charts", data: charts });
