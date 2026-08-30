@@ -2,22 +2,34 @@ import type { SSEEvent } from "./types.js";
 
 const CLEANUP_DELAY_MS = 5 * 60 * 1000;
 
-// Worker 全局事件存储
 interface EventEntry {
   history: SSEEvent[];
   subscribers: Set<(e: SSEEvent) => void>;
   terminated: boolean;
   timer: ReturnType<typeof setTimeout> | null;
+  started: boolean;
 }
 
 const store = new Map<string, EventEntry>();
 
-export function publishEvent(analysisId: string, event: SSEEvent): void {
+export function ensureEntry(analysisId: string): EventEntry {
   let entry = store.get(analysisId);
   if (!entry) {
-    entry = { history: [], subscribers: new Set(), terminated: false, timer: null };
+    entry = { history: [], subscribers: new Set(), terminated: false, timer: null, started: false };
     store.set(analysisId, entry);
   }
+  return entry;
+}
+
+export function markStarted(analysisId: string): boolean {
+  const entry = ensureEntry(analysisId);
+  if (entry.started) return false;
+  entry.started = true;
+  return true;
+}
+
+export function publishEvent(analysisId: string, event: SSEEvent): void {
+  const entry = ensureEntry(analysisId);
 
   if (!entry.terminated) {
     entry.history.push(event);
@@ -43,10 +55,7 @@ export function subscribeEvents(
   analysisId: string,
   callback: (e: SSEEvent) => void,
 ): () => void {
-  const entry = store.get(analysisId);
-  if (!entry) {
-    return () => {};
-  }
+  const entry = ensureEntry(analysisId);
 
   entry.subscribers.add(callback);
 
@@ -61,6 +70,7 @@ export function subscribeEvents(
   return () => {
     entry.subscribers.delete(callback);
     if (entry.subscribers.size === 0 && entry.terminated) {
+      if (entry.timer) clearTimeout(entry.timer);
       store.delete(analysisId);
     }
   };
