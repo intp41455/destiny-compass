@@ -1,4 +1,4 @@
-const API_BASE = "/api";
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
 export interface PaipanInput {
   birthday: string;
@@ -24,8 +24,9 @@ export interface ServiceStatus {
 
 export interface StatusResponse {
   timestamp: string;
-  healthCheckTimeoutMs: number;
-  services: ServiceStatus[];
+  status?: string;
+  service?: string;
+  services?: ServiceStatus[];
 }
 
 export async function startAnalysis(

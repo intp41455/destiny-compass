@@ -6,32 +6,77 @@ interface Props {
   loading: boolean;
 }
 
+const DEFAULT_LOCATIONS: Record<string, { lat: number; lng: number }> = {
+  北京: { lat: 39.9042, lng: 116.4074 },
+  上海: { lat: 31.2304, lng: 121.4737 },
+  广州: { lat: 23.1291, lng: 113.2644 },
+  深圳: { lat: 22.5431, lng: 114.0579 },
+  成都: { lat: 30.5728, lng: 104.0668 },
+  杭州: { lat: 30.2741, lng: 120.1551 },
+  武汉: { lat: 30.5928, lng: 114.3055 },
+  西安: { lat: 34.3416, lng: 108.9398 },
+  纽约: { lat: 40.7128, lng: -74.006 },
+  伦敦: { lat: 51.5074, lng: -0.1278 },
+  东京: { lat: 35.6762, lng: 139.6503 },
+  悉尼: { lat: -33.8688, lng: 151.2093 },
+};
+
 export function InputForm({ onSubmit, loading }: Props) {
-  const [birthday, setBirthday] = useState("");
-  const [birthTime, setBirthTime] = useState("");
+  const [birthday, setBirthday] = useState("1990-01-01");
+  const [birthTime, setBirthTime] = useState("12:00");
   const [gender, setGender] = useState<"male" | "female">("male");
-  const [locationName, setLocationName] = useState("");
+  const [locationName, setLocationName] = useState("北京");
   const [useManualCoords, setUseManualCoords] = useState(false);
   const [lat, setLat] = useState("");
   const [lng, setLng] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(birthday)) {
+      setError("请选择有效的出生日期");
+      return;
+    }
+    if (!/^\d{2}:\d{2}$/.test(birthTime)) {
+      setError("请选择有效的出生时间");
+      return;
+    }
+
     const input: PaipanInput = {
       birthday,
       birthTime,
       gender,
       locationName: useManualCoords ? locationName || "自定义" : locationName,
     };
-    if (useManualCoords && lat && lng) {
+
+    if (useManualCoords) {
+      if (lat === "" || lng === "" || isNaN(Number(lat)) || isNaN(Number(lng))) {
+        setError("请输入有效的经纬度");
+        return;
+      }
       input.lat = Number(lat);
       input.lng = Number(lng);
+    } else {
+      const match = DEFAULT_LOCATIONS[locationName.trim()];
+      if (match) {
+        input.lat = match.lat;
+        input.lng = match.lng;
+      }
     }
+
     onSubmit(input);
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
+      {error && (
+        <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded p-2">
+          {error}
+        </div>
+      )}
+
       <div>
         <label className="block text-xs text-zinc-500 mb-1">出生日期（公历）</label>
         <input

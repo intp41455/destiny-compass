@@ -9,3 +9,7 @@ coverage
 *.tsbuildinfo
 **/node_modules/.tsbuildinfo/
 **/.dev.vars
+**/.dev.vars.local
+**/.dev.vars.*.local
+.wrangler/
+.trae-html-share-packages/
