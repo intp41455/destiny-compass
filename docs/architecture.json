@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "命理罗盘 · MCP 多智能体编排架构",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1080, 700],
+    "output": "docs/architecture.html"
+  },
+  "components": [
+    { "id": "frontend", "type": "frontend", "label": "前端 SPA", "sublabel": "React + Vite", "pos": [20, 296], "size": [148, 64], "tag": "SSE 分段渲染" },
+    { "id": "orch", "type": "backend", "label": "编排层", "sublabel": "Hono · :3000", "pos": [222, 288], "size": [176, 84], "tag": "pipeline + EventBus" },
+
+    { "id": "bazi", "type": "backend", "label": "mcp-bazi", "sublabel": "八字排盘 · :3011", "pos": [560, 30], "size": [162, 56] },
+    { "id": "ziwei", "type": "backend", "label": "mcp-ziwei", "sublabel": "紫微斗数 · :3012", "pos": [560, 108], "size": [162, 56] },
+    { "id": "vedic", "type": "backend", "label": "mcp-vedic", "sublabel": "印度占星 · :3013", "pos": [560, 186], "size": [162, 56] },
+    { "id": "western", "type": "backend", "label": "mcp-western", "sublabel": "古典占星 · :3014", "pos": [560, 264], "size": [162, 56] },
+    { "id": "arabic", "type": "backend", "label": "mcp-arabic", "sublabel": "阿拉伯占星 · :3015", "pos": [560, 342], "size": [162, 56] },
+    { "id": "rag", "type": "database", "label": "mcp-rag", "sublabel": "命理知识库 · :3016", "pos": [560, 420], "size": [162, 56], "tag": "检索增强" },
+    { "id": "search", "type": "cloud", "label": "mcp-search", "sublabel": "多源检索 · :3017", "pos": [560, 498], "size": [162, 56] },
+    { "id": "llm", "type": "cloud", "label": "mcp-llm", "sublabel": "LLM 网关 · :3018", "pos": [560, 576], "size": [162, 56], "tag": "OpenAI 兼容" }
+  ],
+  "boundaries": [
+    { "kind": "security-group", "label": "5 套排盘体系（各自独立进程）", "wraps": ["bazi", "ziwei", "vedic", "western", "arabic"] },
+    { "kind": "security-group", "label": "知识库与模型能力", "wraps": ["rag", "search", "llm"] }
+  ],
+  "connections": [
+    { "id": "fe-orch", "from": "frontend", "to": "orch", "label": "提交排盘参数", "variant": "emphasis", "labelDy": -46 },
+    { "id": "orch-fe", "from": "orch", "to": "frontend", "label": "SSE 分段推送", "variant": "emphasis", "fromSide": "left", "toSide": "left", "labelDy": 62 },
+    { "id": "orch-bazi", "from": "orch", "to": "bazi", "variant": "emphasis" },
+    { "id": "orch-ziwei", "from": "orch", "to": "ziwei" },
+    { "id": "orch-vedic", "from": "orch", "to": "vedic" },
+    { "id": "orch-western", "from": "orch", "to": "western" },
+    { "id": "orch-arabic", "from": "orch", "to": "arabic" },
+    { "id": "orch-rag", "from": "orch", "to": "rag", "variant": "dashed" },
+    { "id": "orch-search", "from": "orch", "to": "search", "variant": "dashed" },
+    { "id": "orch-llm", "from": "orch", "to": "llm", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "编排设计",
+      "items": [
+        "每个命理体系是独立 MCP 进程，端口 3011–3018 固定约定",
+        "编排层只做调度与拼装，不含任何排盘算法",
+        "pipeline 串行：排盘 → 人生总析 → 年度 → 月度 → 未来 7 日",
+        "每段结果通过 SSE 单独推送，前端分段渲染而非等全量"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "工程约束",
+      "items": [
+        "MCP_HOST_<NAME> 环境变量可覆盖地址，支持 docker / k8s 跨主机部署",
+        "健康检查超时 2 秒，MCP 调用超时 30 秒，避免单点拖死整链",
+        "System prompt 硬约束：禁止编造排盘数据，输出必须是合法 JSON"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "规模",
+      "items": [
+        "12 个包 / 约 9,100 行 TypeScript",
+        "编排层 1,664 行，共享层 1,104 行，前端 1,596 行",
+        "GitHub Actions 自动部署 Worker 与 Pages"
+      ]
+    }
+  ]
+}
