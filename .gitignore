@@ -13,3 +13,7 @@ coverage
 **/.dev.vars.*.local
 .wrangler/
 .trae-html-share-packages/
+
+# ---- 构建中间产物 ----
+_ud/
+.archify-*
