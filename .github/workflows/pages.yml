@@ -2,6 +2,8 @@ name: Deploy to GitHub Pages
 
 on:
   push:
+    branches: [master, feat/destiny-compass-landing]
+  pull_request:
     branches: [master]
   workflow_dispatch:
 
