@@ -285,9 +285,13 @@ export function calculateArabicAstrology(
   ];
 
   const CHALDEAN_ORDER = ["Saturn", "Jupiter", "Mars", "Sun", "Venus", "Mercury", "Moon"];
-  const dayOfWeek = (julianDay(year, month, day, hour) + 1) % 7;
-  const dayRuler = CHALDEAN_ORDER[Math.floor(dayOfWeek)];
-  const hourIndex = (dayOfWeek * 5 + hour) % 7;
+  // getUTCDay(): 0=周日 … 6=周六 → Chaldean 序列下标
+  // 日曜Sun(3) 月曜Moon(6) 火曜Mars(2) 水曜Mercury(5) 木曜Jupiter(1) 金曜Venus(4) 土曜Saturn(0)
+  const WEEKDAY_TO_CHALDEAN = [3, 6, 2, 5, 1, 4, 0];
+  const jsWeekday = new Date(Date.UTC(year, month - 1, day, hour)).getUTCDay();
+  const chaldeanIdx = WEEKDAY_TO_CHALDEAN[jsWeekday];
+  const dayRuler = CHALDEAN_ORDER[chaldeanIdx];
+  const hourIndex = (chaldeanIdx + hour) % 7;
   const hourRuler = CHALDEAN_ORDER[hourIndex];
 
   const northNodeLon = ((sun.longitude + moon.longitude) / 2 + 180) % 360;
