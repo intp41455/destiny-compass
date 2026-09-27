@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { InputForm } from "./components/InputForm";
 import { BaziChart } from "./components/BaziChart";
 import { MultiChartsPanel } from "./components/MultiChartsPanel";
@@ -6,8 +6,10 @@ import { StatusBadge } from "./components/StatusBadge";
 import { ProgressTimeline } from "./components/ProgressTimeline";
 import { AnalysisSection } from "./components/AnalysisSection";
 import { DailyFortuneList } from "./components/DailyFortuneList";
+import { LLMSettings } from "./components/LLMSettings";
 import { useSSE } from "./hooks/useSSE";
-import { startAnalysis, type PaipanInput } from "./api/client";
+import { startAnalysis, type PaipanInput, type LLMConfig } from "./api/client";
+import { loadLLMConfig, saveLLMConfig, clearLLMConfig } from "./api/llmStore";
 
 interface ChartsData {
   meta: {
@@ -74,7 +76,18 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [charts, setCharts] = useState<ChartsData | null>(null);
   const [errMsg, setErrMsg] = useState<string | null>(null);
+  const [llmConfig, setLlmConfig] = useState<LLMConfig>(() => loadLLMConfig());
   const { events, isConnected, isDone, error, connect } = useSSE();
+
+  const handleLLMChange = useCallback((config: LLMConfig) => {
+    setLlmConfig(config);
+    saveLLMConfig(config);
+  }, []);
+
+  const handleLLMClear = useCallback(() => {
+    setLlmConfig({});
+    clearLLMConfig();
+  }, []);
 
   // 按 section 收集 analysis 事件（同一 section 可能被多次推送，取最新）
   const analysisSections = useMemo(() => {
@@ -92,7 +105,7 @@ export default function App() {
     setErrMsg(null);
     setCharts(null);
     try {
-      const { analysisId } = await startAnalysis(input);
+      const { analysisId } = await startAnalysis(input, llmConfig);
       connect(analysisId);
     } catch (err) {
       setErrMsg((err as Error).message);
@@ -170,6 +183,12 @@ export default function App() {
             <h2 className="font-medium mb-3 text-sm">排盘输入</h2>
             <InputForm onSubmit={handleSubmit} loading={loading} />
           </div>
+
+          <LLMSettings
+            config={llmConfig}
+            onChange={handleLLMChange}
+            onClear={handleLLMClear}
+          />
 
           {errMsg && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 rounded-xl p-3 text-xs text-red-700 dark:text-red-300">

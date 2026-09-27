@@ -9,6 +9,21 @@ export interface PaipanInput {
   timezone?: string;
 }
 
+/**
+ * OpenAI 兼容的模型接入配置。
+ * 三项均可选，缺省时回退到服务端环境变量（LLM_BASE_URL / LLM_API_KEY / LLM_MODEL）。
+ */
+export interface LLMConfig {
+  baseUrl?: string;
+  apiKey?: string;
+  model?: string;
+}
+
+/** /api/analyze 请求体 */
+export interface AnalyzeRequest extends PaipanInput {
+  llm?: LLMConfig;
+}
+
 /** 真太阳时校准结果 */
 export interface SolarTimeResult {
   inputTime: string;

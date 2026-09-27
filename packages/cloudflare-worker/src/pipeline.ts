@@ -1,10 +1,10 @@
-import type { ChartsResult, PaipanInput, SSEEvent } from "./types.js";
+import type { ChartsResult, LLMConfig, PaipanInput, SSEEvent } from "./types.js";
 import { calculateBazi } from "./bazi.js";
 import { calculateSolarTime } from "./solar-time.js";
 import { calculateWesternAstrology, calculateVedicAstrology, calculateArabicAstrology } from "./astrology.js";
 import { calculateZiwei } from "./ziwei.js";
 import { publishEvent } from "./event-bus.js";
-import { LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, ANALYSIS_TIMEOUT_MS } from "./config.js";
+import { ANALYSIS_TIMEOUT_MS, resolveLLMConfig, type ResolvedLLMConfig } from "./config.js";
 
 export type ProgressCallback = (event: SSEEvent) => void;
 
@@ -19,16 +19,17 @@ interface CallLLMOptions {
   temperature?: number;
 }
 
-async function callLLM(opts: CallLLMOptions): Promise<string> {
-  const url = `${LLM_BASE_URL}/v1/chat/completions`;
+/** 调用 OpenAI 兼容的 /chat/completions 接口 */
+async function callLLM(opts: CallLLMOptions, llm: ResolvedLLMConfig): Promise<string> {
+  const url = `${llm.baseUrl}/chat/completions`;
   const response = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${LLM_API_KEY}`,
+      Authorization: `Bearer ${llm.apiKey}`,
     },
     body: JSON.stringify({
-      model: LLM_MODEL,
+      model: llm.model,
       messages: opts.messages,
       temperature: opts.temperature ?? 0.7,
       response_format: { type: "json_object" },
@@ -162,8 +163,10 @@ export async function runAnalysisPipeline(
   input: PaipanInput,
   analysisId: string,
   onProgress: ProgressCallback,
+  llmOverride?: LLMConfig | null,
 ): Promise<{ charts: ChartsResult; sections: Record<string, string> }> {
   const sections: Record<string, string> = {};
+  const llm = resolveLLMConfig(llmOverride);
 
   // ============ STEP 1: 真太阳时 + 八字 ============
   onProgress({ type: "progress", step: "STEP 1", message: "正在校准真太阳时 + 排八字…" });
@@ -215,6 +218,16 @@ export async function runAnalysisPipeline(
 
   onProgress({ type: "charts", data: charts });
 
+  // 未配置模型 API Key 时，排盘结果照常返回，仅跳过 LLM 分析并给出明确提示
+  if (!llm.apiKey) {
+    onProgress({
+      type: "error",
+      step: "llm",
+      message: "未配置模型 API Key，已仅返回排盘结果。请在「模型接入」中填写 OpenAI 兼容接口的 API Key。",
+    });
+    return { charts, sections };
+  }
+
   // ============ STEP 2: 人生总分析 ============
   onProgress({ type: "progress", step: "STEP 2", message: "正在生成人生总分析…" });
   try {
@@ -223,7 +236,7 @@ export async function runAnalysisPipeline(
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: buildLifePrompt(charts) },
       ],
-    });
+    }, llm);
     sections.life = lifeAnalysis;
     onProgress({ type: "analysis", section: "人生总分析", content: lifeAnalysis });
   } catch (err) {
@@ -240,7 +253,7 @@ export async function runAnalysisPipeline(
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: buildYearlyPrompt(charts, currentYear) },
       ],
-    });
+    }, llm);
     sections.yearly = yearly;
     onProgress({ type: "analysis", section: `${currentYear} 年度运势`, content: yearly });
   } catch (err) {
@@ -257,7 +270,7 @@ export async function runAnalysisPipeline(
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: `# 命主\n- 日主：${charts.bazi.dayMaster}\n- 四柱：${charts.bazi.pillars.year} ${charts.bazi.pillars.month} ${charts.bazi.pillars.day} ${charts.bazi.pillars.hour}\n\n请预测 ${currentYear} 年 ${month} 月的运势。输出 JSON：{"window":"${currentYear}年${month}月","overallScore":60,"summary":"月度总评","keyNotes":[],"events":[{"category":"事业","probability":0.7,"people":[],"risks":[],"opportunities":[],"description":"","suggestion":""}],"precautions":[]}` },
       ],
-    });
+    }, llm);
     sections.monthly = monthly;
     onProgress({ type: "analysis", section: `${currentYear} 年 ${month} 月运势`, content: monthly });
   } catch (err) {
@@ -278,7 +291,7 @@ export async function runAnalysisPipeline(
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: buildDailyPrompt(charts, dateStr) },
         ],
-      });
+      }, llm);
       dailyResults.push(daily);
       onProgress({ type: "analysis", section: `每日运势 #${i + 1}`, content: daily });
       onProgress({ type: "progress", step: "STEP 5", message: `已完成 ${i + 1}/7 天` });
@@ -299,8 +312,9 @@ export async function runAnalysisPipeline(
 export function startPipeline(
   input: PaipanInput,
   analysisId: string,
+  llmOverride?: LLMConfig | null,
 ): Promise<unknown> {
   return runAnalysisPipeline(input, analysisId, (event) => {
     publishEvent(analysisId, event);
-  });
+  }, llmOverride);
 }

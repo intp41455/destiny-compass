@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { API_BASE } from "../api/client";
 
 /** SSE 事件类型与编排层 SSEEvent 对齐 */
 export interface SSEEvent {
@@ -46,7 +47,7 @@ export function useSSE(): SSEState {
       setError(null);
       setIsConnected(true);
 
-      const es = new EventSource(`/api/stream/${analysisId}`);
+      const es = new EventSource(`${API_BASE}/stream/${analysisId}`);
       eventSourceRef.current = es;
 
       const handle = (e: MessageEvent) => {
@@ -67,7 +68,8 @@ export function useSSE(): SSEState {
         }
       };
 
-      // 显式监听具名事件（后端用 event: <type> 字段分发）
+      // 后端以默认 message 事件发送（data: 行），同时兼容具名事件写法
+      es.onmessage = handle;
       ["progress", "charts", "analysis", "done", "error"].forEach((type) =>
         es.addEventListener(type, handle as EventListener)
       );

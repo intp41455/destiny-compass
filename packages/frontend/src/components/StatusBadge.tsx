@@ -22,6 +22,7 @@ const MCP_LABELS: Record<string, string> = {
 export function StatusBadge() {
   const [services, setServices] = useState<ServiceStatus[]>(MODULES);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [llmInfo, setLlmInfo] = useState<{ baseUrl: string; model: string; hasServerKey: boolean } | null>(null);
 
   useEffect(() => {
     const fetchStatus = () => {
@@ -31,12 +32,21 @@ export function StatusBadge() {
           if (d.services && d.services.length > 0) {
             setServices(d.services);
           } else {
-            setServices(MODULES.map((m) => ({ ...m, status: isOnline ? "online" : "offline" })));
+            // Worker 只返回整体状态，其余模块视为随 Worker 在线；LLM 依据服务端是否配置 Key 判定
+            setServices(
+              MODULES.map((m) =>
+                m.name === "LLM"
+                  ? { ...m, status: isOnline && d.llm?.hasServerKey ? "online" : "offline" }
+                  : { ...m, status: isOnline ? "online" : "offline" }
+              )
+            );
           }
+          setLlmInfo(d.llm ?? null);
           setLastUpdate(new Date());
         })
         .catch(() => {
           setServices(MODULES.map((m) => ({ ...m, status: "offline" })));
+          setLlmInfo(null);
         });
     };
     fetchStatus();
@@ -83,6 +93,13 @@ export function StatusBadge() {
           </div>
         ))}
       </div>
+
+      {llmInfo && (
+        <div className="text-[11px] text-zinc-400 pt-1 border-t border-zinc-100 dark:border-zinc-800 break-all">
+          服务端默认：{llmInfo.model}
+          {llmInfo.hasServerKey ? "（已配置 Key）" : "（未配置 Key）"}
+        </div>
+      )}
     </div>
   );
 }
